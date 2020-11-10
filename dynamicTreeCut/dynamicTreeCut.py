@@ -2,7 +2,7 @@ import os
 import numpy as np
 from scipy.stats import rankdata
 from scipy.special import binom #faster than comb
-import dynamicTreeCut.df_apply
+from dynamicTreeCut import df_apply
 from functools import partial
 from dynamicTreeCut.R_func import *
 
@@ -10,11 +10,13 @@ from dynamicTreeCut.R_func import *
 chunkSize = 100
 
 #Function to index flat matrix as squareform matrix
-def dist_index(i, j, matrix, l, n):
+def dist_index(i, j, matrix):
     
     if i == j:
         return(0.0)
     
+    l = len(matrix)
+    n = 0.5*(np.sqrt((8*l)+1)+1)
     index = int(l - binom(n-min(i, j), 2) + (max(i, j) - min(i, j) - 1))
     
     return(matrix[index])
@@ -23,17 +25,10 @@ def dist_index(i, j, matrix, l, n):
 #Function to index flat matrix as squareform matrix
 def dist_multi_index(_array, matrix):
     
-    #handle 2D array
-    if len(matrix.shape) == 2:
-        return(matrix[_array, :][:, _array])
-    
-    l = len(matrix)
-    n = 0.5*(np.sqrt((8*l)+1)+1)
-    
     results = np.zeros((len(_array), len(_array)))
     for i in range(len(_array)):
         for j in range(i, len(_array)):
-            score = dist_index(_array[i], _array[j], matrix, l, n)
+            score = dist_index(_array[i], _array[j], matrix)
             results[i,j] = score
             results[j,i] = score
     
@@ -43,10 +38,6 @@ def dist_multi_index(_array, matrix):
 #Function to index rows of flat matrix as squareform matrix
 def get_rows(_array, matrix):
     
-    #handle 2D array
-    if len(matrix.shape) == 2:
-        return(matrix[_array,:])
-    
     l = len(matrix)
     n = int(0.5*(np.sqrt((8*l)+1)+1))
     
@@ -55,11 +46,8 @@ def get_rows(_array, matrix):
     
         for row, i in enumerate(_array):
             for j in range(n):
-                if i == j:
-                    results[row, j] = 0.0
-                else:
-                    index = int(l - binom(n - min(i, j), 2) + (max(i, j) - min(i, j) - 1))
-                    results[row,j] = matrix[index]
+                index = int(l - binom(n - min(i, j), 2) + (max(i, j) - min(i, j) - 1))
+                results[row,j] = matrix[index]
     
         return(results)
         
@@ -69,11 +57,8 @@ def get_rows(_array, matrix):
         for i, b in enumerate(_array):
             if b == True:
                 for j in range(n):
-                    if i == j:
-                        results[row, j] = 0.0
-                    else:
-                        index = int(l - binom(n - min(i, j), 2) + (max(i, j) - min(i, j) - 1))
-                        results[row, j] = matrix[index]
+                    index = int(l - binom(n - min(i, j), 2) + (max(i, j) - min(i, j) - 1))
+                    results[row, j] = matrix[index]
                 
                 row += 1
                 
@@ -172,7 +157,6 @@ def cutreeHybrid(link, distM,
     
     # fill in this section once understood better
     if externalBranchSplitFnc != None:
-        raise NotImplementedError("externalBranchSplitFnc is not supported yet")
         nExternalSplits = len(externalBranchSplitFnc)
         if len(minExternalSplit) < 1:
             raise AttributeError("minExternalBranchSplit must be given.")
@@ -759,10 +743,10 @@ def cutreeHybrid(link, distM,
         if len(Sizes) > 1:
             SizeRank = np.append(1, rankdata(-Sizes[1:len(Sizes)], method="ordinal")+1)
         else:
-            SizeRank = np.array([1])
+            SizeRank = 1
         OrdNumLabs = SizeRank[NumLabs - 1]
     else:
-        SizeRank = rankdata(-Sizes[np.arange(len(Sizes))], method="ordinal")
+        SizeRank = rankdata(-Sizes.iloc[np.arange(len(Sizes))], method="ordinal")
         OrdNumLabs = SizeRank[NumLabs - 2]
     ordCoreLabels = OrdNumLabs - UnlabeledExist
     ordCoreLabels[coreLabels == 0] = 0
